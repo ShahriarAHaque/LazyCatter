@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazyCatter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Inter:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#130f1a; --surface:#1b1524; --surface-2:#241c30; --raise:#2b2038;
+    --line:#352a46; --line-soft:#2a2137;
+    --ink:#f0e9f5; --muted:#a091b4; --faint:#6f6383;
+    --magenta:#e6437e; --magenta-hi:#ff6aa0; --violet:#9350dd; --violet-hi:#a163e6;
+    --crimson:#f0324f; --crimson-hi:#ff5670; --ok:#46c08a; --warn:#e0a53a;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+    --r:13px; --r-sm:9px;
+    --display:"Zen Maru Gothic",system-ui,sans-serif;
+    --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"Space Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--void);color:var(--ink);min-height:100vh;
+    font-family:var(--body);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+  .topbar{position:sticky;top:0;z-index:20;isolation:isolate;display:flex;align-items:center;
+    gap:var(--s4);padding:var(--s3) var(--s6);background:rgba(19,15,26,.9);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:var(--s2);min-width:0}
+  .brand .mk{width:22px;height:22px;flex:none}
+  .brand b{font-family:var(--display);font-weight:900;font-size:16px;letter-spacing:.02em}
+  .brand small{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.08em}
+  .statuspill{margin-left:auto;display:flex;align-items:center;gap:var(--s2);min-width:0;
+    padding:6px var(--s3);border:1px solid var(--line);border-radius:99px;background:var(--surface)}
+  .statuspill .dot{display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;
+    flex:0 0 8px;aspect-ratio:1;border-radius:50%;background:var(--faint);transition:background-color 150ms ease}
+  .statuspill .txt{font-family:var(--mono);font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28vw}
+  body[data-conn="on"] .statuspill .dot{background:var(--ok)}
+  body[data-conn="on"] .statuspill .txt{color:var(--ink)}
+  body[data-conn="kill"] .statuspill .dot{background:var(--crimson)}
+  body[data-conn="kill"] .statuspill .txt{color:var(--crimson-hi)}
+  .stop{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.02em;
+    padding:8px var(--s4);border-radius:var(--r-sm);cursor:not-allowed;flex:none;
+    color:var(--faint);background:transparent;border:1px solid var(--line);
+    transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease}
+  body[data-conn="on"] .stop,body[data-conn="kill"] .stop.restart{
+    cursor:pointer;color:#fff;background:var(--crimson);border-color:var(--crimson-hi)}
+  body[data-conn="on"] .stop:hover{background:var(--crimson-hi)}
+  .stop.restart{background:var(--ok)!important;border-color:var(--ok)!important;cursor:pointer;color:#0c1a13!important}
+  .stop:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(240,50,79,.4)}
+
+  .toast{position:fixed;top:64px;right:18px;z-index:40;width:min(360px,calc(100vw - 36px));
+    background:var(--surface);border:1px solid var(--violet);border-radius:var(--r);
+    padding:var(--s4);box-shadow:0 12px 40px rgba(0,0,0,.45)}
+  .toast[hidden]{display:none!important}
+  .toast-top{display:flex;align-items:flex-start;gap:var(--s3);margin-bottom:var(--s2)}
+  .toast-top strong{flex:1;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+  .toast-x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+  .toast-x:hover{color:var(--ink)}
+
+  .wrap{max-width:820px;margin:0 auto;padding:var(--s6)}
+  .stepper{display:flex;gap:var(--s2);margin-bottom:var(--s6);flex-wrap:wrap}
+  .step-tab{flex:1;min-width:120px;display:flex;align-items:center;gap:var(--s2);padding:10px var(--s3);
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+    cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600;
+    transition:border-color 140ms ease,color 140ms ease,background-color 140ms ease}
+  .step-tab:hover{border-color:var(--muted);color:var(--ink)}
+  .step-tab:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(147,80,221,.3)}
+  .step-tab .n{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:50%;
+    font-family:var(--mono);font-size:11px;background:var(--surface-2);color:var(--faint)}
+  .step-tab[data-state="current"]{border-color:var(--violet);color:var(--ink);background:var(--raise)}
+  .step-tab[data-state="current"] .n{background:var(--violet);color:#fff}
+  .step-tab[data-state="done"] .n{background:var(--ok);color:#0c1a13}
+  .step-tab[data-state="done"]{color:var(--ink)}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:var(--s6);isolation:isolate}
+  .step{display:none}.step.active{display:block}
+  .head{display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s2)}
+  .head .no{font-family:var(--display);font-weight:900;font-size:14px;color:var(--violet)}
+  .head h2{font-family:var(--display);font-weight:700;font-size:18px;margin:0}
+  .lead{color:var(--muted);font-size:13px;max-width:68ch;margin:0 0 var(--s5)}
+  .lead code{font-family:var(--mono);font-size:12px;color:var(--magenta-hi)}
+
+  label.fld{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:var(--s4) 0 var(--s2)}
+  label.fld:first-of-type{margin-top:0}
+  label.fld .hint{font-weight:400;color:var(--faint)}
+  input[type=text],input[type=password],input[type=number],textarea,select{
+    width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:10px var(--s3);font-family:var(--mono);font-size:13px;
+    transition:border-color 140ms ease,box-shadow 140ms ease}
+  select{font-family:var(--body)}
+  input::placeholder,textarea::placeholder{color:var(--faint)}
+  input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;
+    border-color:var(--magenta);box-shadow:0 0 0 3px rgba(230,67,126,.18)}
+  textarea{min-height:120px;resize:vertical;line-height:1.5}
+
+  .file{display:flex;align-items:center;gap:var(--s3)}
+  .file label{font-family:var(--body);font-size:13px;font-weight:600;color:var(--ink);
+    background:var(--raise);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:9px var(--s4);cursor:pointer;transition:border-color 140ms ease}
+  .file label:hover{border-color:var(--muted)}
+  .file input{display:none}
+  .file .name{font-family:var(--mono);font-size:12px;color:var(--faint)}
+
+  .opt{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3) 0;border-top:1px solid var(--line-soft)}
+  .opt:first-of-type{border-top:0}
+  .opt input[type=checkbox]{appearance:none;width:18px;height:18px;flex:none;margin-top:1px;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:5px;cursor:pointer;
+    display:grid;place-items:center;transition:background-color 140ms ease,border-color 140ms ease}
+  .opt input[type=checkbox]:checked{background:var(--magenta);border-color:var(--magenta)}
+  .opt input[type=checkbox]:checked::after{content:"";width:5px;height:9px;margin-bottom:2px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .opt input[type=checkbox]:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(230,67,126,.25)}
+  .opt .lbl{font-size:13.5px;color:var(--ink)}
+  .opt .lbl small{display:block;color:var(--faint);font-size:12px;margin-top:2px}
+  .opt .chip{font-family:var(--mono);font-size:10px;color:var(--crimson-hi);border:1px solid var(--crimson);
+    border-radius:5px;padding:0 5px;margin-left:6px;vertical-align:1px}
+
+  .note{font-size:12px;color:var(--faint);margin-top:var(--s3);max-width:70ch}
+  .warn{color:var(--warn)} .ok{color:var(--ok)} .err{color:var(--crimson-hi)}
+
+  .btn{font-family:var(--body);font-weight:600;font-size:13.5px;color:var(--ink);
+    background:transparent;border:1px solid var(--line);padding:10px var(--s4);border-radius:var(--r-sm);
+    cursor:pointer;transition:background-color 140ms ease,border-color 140ms ease,transform 120ms ease}
+  .btn:hover{border-color:var(--muted);background:var(--surface-2)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(147,80,221,.3)}
+  .btn.primary{background:var(--magenta);border-color:transparent;color:#fff}
+  .btn.primary:hover{background:var(--magenta-hi)}
+  .btn.primary:focus-visible{box-shadow:0 0 0 3px rgba(230,67,126,.35)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;background:transparent;border-color:var(--line);color:var(--muted)}
+  .actions{display:flex;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s5)}
+  .footer{display:flex;align-items:center;margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line-soft);gap:var(--s3);flex-wrap:wrap}
+  .footer .spacer{margin-left:auto}
+
+  .catStatus{margin-top:var(--s3);padding:8px 10px;border-radius:var(--r-sm);border:1px solid var(--line);
+    font-size:13px;color:var(--muted);background:var(--surface-2);font-family:var(--mono)}
+  .catStatus.ok{border-color:var(--ok);color:var(--ok)}
+  .catStatus.warn{border-color:var(--warn);color:var(--warn)}
+  .catStatus.err{border-color:var(--crimson);color:var(--crimson-hi)}
+  .catStatus.busy{border-color:var(--violet);color:var(--ink)}
+  .threadPick{max-height:220px;overflow:auto;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:8px 10px;margin-top:4px}
+  .threadPick label{display:flex;align-items:flex-start;gap:8px;margin:0;padding:5px 2px;
+    color:var(--ink);font-size:13px;cursor:pointer}
+  .threadPick label:hover{background:var(--raise);border-radius:6px}
+  .threadPick input{width:auto;margin-top:3px;flex-shrink:0;appearance:auto}
+  .threadPick .arch{color:var(--faint);font-size:11px;margin-left:4px}
+  #threadWrap[hidden],#threadEmpty[hidden],#uiTokenBlock.hidden{display:none!important}
+
+  .bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;border:1px solid var(--line);margin-top:var(--s4)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--violet),var(--magenta))}
+  pre.box{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px;overflow:auto;font-family:var(--mono);font-size:12.5px;max-height:240px;margin:var(--s3) 0 0}
+
+  .logbar{position:sticky;bottom:0;margin-top:var(--s5);background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--r-sm);padding:10px var(--s4);
+    display:grid;gap:6px}
+  .logbar .row{display:flex;align-items:center;gap:var(--s3)}
+  .logbar .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .logbar .v{font-family:var(--mono);font-size:12px;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .logbar pre{margin:0;max-height:120px;overflow:auto;font-family:var(--mono);font-size:11.5px;
+    background:transparent;border:0;padding:0;color:var(--muted);white-space:pre-wrap}
+</style>
+</head>
+<body data-conn="off">
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="mk" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9350dd"/><stop offset="1" stop-color="#e6437e"/></linearGradient></defs><path fill="url(#hg)" d="M12 21C12 21 3.6 14 3.6 8.6 3.6 5.9 5.7 4 8.3 4 10 4 11.3 5 12 6.1 12.7 5 14 4 15.7 4 18.3 4 20.4 5.9 20.4 8.6 20.4 14 12 21 12 21Z"/></svg>
+    <b>LazyCatter</b><small id="appVer"></small>
+  </div>
+  <div class="statuspill"><span class="dot" id="dot"></span><span class="txt" id="connTxt">offline</span></div>
+  <button class="stop" id="killBtn" type="button" onclick="onKillRestart()" title="Stops any running change and disconnects the bot.">■ STOP</button>
+</header>
+
+<div id="firstRunTip" class="toast" hidden>
+  <div class="toast-top">
+    <strong>First run</strong>
+    <button type="button" class="toast-x" onclick="dismissFirstRun()" aria-label="Dismiss">×</button>
+  </div>
+  <p class="note" style="margin:0">Paste a Discord <em>bot</em> token from the Developer Portal, not your account token.
+  Connect, then upload a plan or skip to Move. Bugs →
+  <a href="https://github.com/ShahriarAHaque/LazyCatter/issues" target="_blank" rel="noopener noreferrer" style="color:var(--violet-hi)">GitHub Issues</a>.</p>
+  <div class="actions" style="margin-top:12px">
+    <button type="button" class="btn primary" onclick="dismissFirstRun()">Got it</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav class="stepper" id="stepper" aria-label="Steps">
+    <button type="button" class="step-tab" data-goto="0" data-state="current"><span class="n">1</span> Connect</button>
+    <button type="button" class="step-tab" data-goto="1"><span class="n">2</span> Plan</button>
+    <button type="button" class="step-tab" data-goto="2"><span class="n">3</span> Move</button>
+    <button type="button" class="step-tab" data-goto="3"><span class="n">4</span> Execute</button>
+  </nav>
+
+  <div class="card">
+
+    <section class="step active" data-step="0">
+      <div class="head"><span class="no">01</span><h2>Connect</h2></div>
+      <p class="lead" id="tokNote">The bot only reaches Discord while this is open. Desktop mode handles the local gate for you — the bot token clears on connect and is never saved.</p>
+
+      <div id="uiTokenBlock">
+        <label class="fld" for="uiToken">UI token <span class="hint">— LAZYCATTER_UI_TOKEN</span></label>
+        <input id="uiToken" type="password" placeholder="the local secret you set">
+      </div>
+
+      <label class="fld" for="botToken">Bot token <span class="hint">— the bot's token, not your personal account token · <a id="devPortalLink" href="https://discord.com/developers/home" target="_blank" rel="noopener noreferrer" style="color:var(--violet-hi)">Developer Portal</a></span></label>
+      <input id="botToken" type="password" placeholder="typed fresh each session, never stored">
+      <label class="fld" for="guildId">Server ID <span class="hint">— right-click the server → Copy Server ID</span></label>
+      <input id="guildId" type="text" placeholder="e.g. 123456789012345678">
+
+      <div class="actions">
+        <button type="button" class="btn primary" onclick="connect()">Connect</button>
+        <button type="button" class="btn" onclick="disconnect()">Disconnect</button>
+        <button type="button" class="btn" onclick="exportPlan('restore')">Save to restore</button>
+        <button type="button" class="btn" onclick="exportPlan('template')">Export template</button>
+      </div>
+
+      <div class="footer">
+        <button type="button" class="btn" onclick="goStepTo(2)">Skip to Move →</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-next>Next →</button>
+      </div>
+    </section>
+
+    <section class="step" data-step="1">
+      <div class="head"><span class="no">02</span><h2>Upload plan</h2></div>
+      <p class="lead">Paste a <code>plan.yaml</code>, load a file, or drop in an exported one from Connect. Skip this if you only came to move messages — the stepper lets you jump straight to Move.</p>
+
+      <label class="fld">Plan file</label>
+      <div class="file">
+        <label for="file">Choose file</label>
+        <input id="file" type="file" accept=".yaml,.yml,.txt" onchange="loadFile(event)">
+        <span class="name" id="pfName">no file chosen</span>
+      </div>
+
+      <label class="fld" for="planText">…or paste it</label>
+      <textarea id="planText" placeholder="categories:&#10;  - name: ♡ welcome&#10;    match: ..."></textarea>
+
+      <div class="actions">
+        <button type="button" class="btn primary" onclick="uploadPlan()">Upload &amp; validate</button>
+        <button type="button" class="btn" onclick="showDiff()">Preview diff</button>
+      </div>
+
+      <div class="footer">
+        <button type="button" class="btn" data-back>← Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" onclick="goStepTo(2)">Skip to Move →</button>
+        <button type="button" class="btn" onclick="goStepTo(3)">Skip to Execute →</button>
+        <button type="button" class="btn" data-next>Next →</button>
+      </div>
+    </section>
+
+    <section class="step" data-step="2">
+      <div class="head"><span class="no">03</span><h2>Move content</h2></div>
+      <p class="lead">Copies messages into another channel as their original authors via a webhook. Discord has no true move, so this is a copy — the source stays put. No plan / APPLY needed — use <strong>▶ Copy content</strong>.</p>
+
+      <div class="actions" style="margin-top:0">
+        <button type="button" class="btn" onclick="refreshMoveCatalogBtn()">Refresh channels</button>
+      </div>
+      <div id="moveCatalogStatus" class="catStatus">Channel picker: waiting for connect</div>
+
+      <label class="fld" for="moveSource">Source channel</label>
+      <select id="moveSource" onchange="onMoveSourceChange()">
+        <option value="">Connect first, then pick a source</option>
+      </select>
+
+      <div id="threadWrap" hidden>
+        <label class="fld">Threads / forum posts</label>
+        <div class="actions" style="margin-top:0">
+          <button type="button" class="btn" onclick="threadSelectAll(true)">Select all</button>
+          <button type="button" class="btn" onclick="threadSelectAll(false)">Select none</button>
+        </div>
+        <div id="threadPick" class="threadPick"></div>
+        <p class="note" id="threadHint">Tick one or more posts to copy.</p>
+      </div>
+      <div id="threadEmpty" hidden>
+        <p class="note">No threads under this channel — dry run will copy the channel messages themselves.</p>
+      </div>
+
+      <label class="fld" for="moveTarget">Target channel</label>
+      <select id="moveTarget">
+        <option value="">Pick where copies land</option>
+      </select>
+
+      <div style="margin-top:var(--s5)">
+        <label class="opt"><input type="checkbox" id="includeReplies" checked>
+          <span class="lbl">Copy whole thread<small>all messages in the post — needed for library dumps</small></span></label>
+        <label class="opt"><input type="checkbox" id="appendLink" checked>
+          <span class="lbl">Append source link under each copy<small>links back to the original post</small></span></label>
+        <label class="opt"><input type="checkbox" id="ageRestrict">
+          <span class="lbl">Set target channel age-restricted<span class="chip">18+</span><small>required if the source art is NSFW</small></span></label>
+      </div>
+
+      <label class="fld" for="sourceAfter">When the copy is done, the source should</label>
+      <select id="sourceAfter">
+        <option value="keep">stay exactly as it is (safest)</option>
+        <option value="archive">move to ARCHIVE and lock read-only</option>
+        <option value="delete">be deleted (asks again first)</option>
+      </select>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="moveBtn" onclick="moveStart()" disabled>▶ Copy content</button>
+        <button type="button" class="btn" onclick="moveDryRun()">Dry run</button>
+        <button type="button" class="btn" onclick="moveCancel()">Cancel copy</button>
+      </div>
+      <div id="moveBox" class="note">Dry run first so you can see the counts and flag anything too big to re-upload.</div>
+
+      <div class="footer">
+        <button type="button" class="btn" data-back>← Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" onclick="goStepTo(3)">Skip to Execute →</button>
+        <button type="button" class="btn" data-next>Next →</button>
+      </div>
+    </section>
+
+    <section class="step" data-step="3">
+      <div class="head"><span class="no">04</span><h2>Review &amp; execute</h2></div>
+      <p class="lead">Channel rename / move plans only — message copying is step 3. Upload a plan and preview the diff first. Nothing touches Discord until you type APPLY.</p>
+
+      <div id="diffBox" class="note">Upload a plan and preview the diff first.</div>
+
+      <label class="fld" for="duration">Spread changes over <span class="hint">— seconds. 0 = as fast as Discord allows</span></label>
+      <input id="duration" type="number" value="120" min="0">
+      <label class="fld" for="confirmApply">Type APPLY to confirm <span class="hint">— required</span></label>
+      <input id="confirmApply" type="text" placeholder="APPLY" autocomplete="off">
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="execBtn" onclick="execute()" disabled>▶ Execute</button>
+        <button type="button" class="btn" onclick="cancel()">Cancel run (stay connected)</button>
+      </div>
+      <div class="bar"><i id="prog"></i></div>
+      <div id="progText" class="note">Idle.</div>
+
+      <div class="footer">
+        <button type="button" class="btn" data-back>← Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" onclick="goStepTo(0)">← Connect</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="logbar">
+    <div class="row"><span class="k">activity</span><span class="v" id="logv">idle — nothing running</span></div>
+    <pre id="log"></pre>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const tok = () => $("uiToken").value;
+
+const steps=[...document.querySelectorAll(".step")];
+const tabs=[...document.querySelectorAll(".step-tab")];
+let stepIndex=0;
+const doneSteps=new Set();
+
+function renderStepper(){
+  steps.forEach((s,i)=>s.classList.toggle("active", i===stepIndex));
+  tabs.forEach((t,i)=>{
+    t.dataset.state = i===stepIndex ? "current" : (doneSteps.has(i) ? "done" : "todo");
+  });
+}
+function goStepTo(i){
+  if(i<0||i>=steps.length) return;
+  doneSteps.add(stepIndex);
+  stepIndex=i;
+  renderStepper();
+  try{ window.scrollTo({top:0,behavior:"smooth"}); }catch(_){ window.scrollTo(0,0); }
+}
+function goStep(delta){ goStepTo(stepIndex+delta); }
+
+document.getElementById("stepper").addEventListener("click",e=>{
+  const t=e.target.closest(".step-tab"); if(t) goStepTo(+t.dataset.goto);
+});
+document.querySelectorAll("[data-next]").forEach(b=>b.addEventListener("click",()=>goStep(1)));
+document.querySelectorAll("[data-back]").forEach(b=>b.addEventListener("click",()=>goStep(-1)));
+
+async function api(path, method="GET", body=null){
+  const opt={method,headers:{"x-ui-token":tok()}};
+  if(body!==null){opt.body=typeof body==="string"?body:JSON.stringify(body);
+    if(typeof body!=="string")opt.headers["content-type"]="application/json";}
+  const r=await fetch("/api"+path,opt);
+  let data; try{data=await r.json();}catch{data={};}
+  if(!r.ok){
+    let detail = data.detail;
+    if(Array.isArray(detail)) detail = detail.map(x => x.msg || JSON.stringify(x)).join("; ");
+    if(detail && typeof detail === "object") detail = JSON.stringify(detail);
+    const msg = (typeof detail === "string" && detail) ? detail : (r.status + " " + r.statusText);
+    throw new Error(friendlyError(msg));
+  }
+  return data;
+}
+function friendlyError(msg){
+  const s = String(msg || "");
+  if(/401|Bad or missing UI token/i.test(s)) return "Local UI gate said no. Restart the app (desktop) or check LAZYCATTER_UI_TOKEN.";
+  if(/Login failed|bad bot token/i.test(s)) return "Login failed — that bot token was rejected. Reset it in the Developer Portal and paste the new one.";
+  if(/Bot did not become ready/i.test(s)) return "Bot never came online. Check the token, invite, and that Message Content Intent is on if you use Move.";
+  if(/not in that guild/i.test(s)) return "Bot logged in but isnt in that server. Re-check the invite and server ID.";
+  if(/Already connected/i.test(s)) return "Already connected. Hit Disconnect (or Kill), then Connect again.";
+  if(/guild_id must be numeric/i.test(s)) return "Server ID should be digits only (Developer Mode → Copy Server ID).";
+  if(/Explicit confirmation/i.test(s)) return "Type APPLY in the confirm box before Execute.";
+  if(/Missing Access|403/i.test(s)) return "Discord said Missing Access. Drag the bot role above whatever it needs to edit.";
+  return s;
+}
+function say(msg, cls=""){
+  const line = `<span class="${cls}">${msg}</span>\n`;
+  const l=$("log");
+  l.innerHTML = line + l.innerHTML;
+  const v=$("logv");
+  if(v){ v.textContent=msg; v.className="v"+(cls?" "+cls:""); }
+}
+
+function dismissFirstRun(){
+  try{ localStorage.setItem("lazycatter_firstrun_v1", "1"); }catch(_){}
+  $("firstRunTip").hidden = true;
+}
+function maybeShowFirstRun(){
+  try{ if(localStorage.getItem("lazycatter_firstrun_v1") === "1") return; }catch(_){}
+  $("firstRunTip").hidden = false;
+}
+
+function setHeaderStatus(kind, title, detail=""){
+  const body=document.body;
+  if(kind==="on") body.dataset.conn="on";
+  else if(kind==="kill") body.dataset.conn="kill";
+  else body.dataset.conn="off";
+  const txt = detail ? `${title} · ${detail}` : title;
+  $("connTxt").textContent = txt;
+}
+function setConnected(guildName, guildId){
+  const id = (guildId || $("guildId").value || "").trim();
+  setHeaderStatus("on", "connected · " + (guildName || "server"), id || "");
+}
+function setDisconnected(label="offline"){
+  setHeaderStatus("", label);
+}
+function setKilled(){
+  setHeaderStatus("kill", "stopped");
+  clearMovePickers();
+  setCatalogStatus("Channel picker: stopped — reconnect to load channels","warn");
+}
+
+let killedMode = false;
+const KILL_HELP = "Stops any running change and disconnects the bot straight away.";
+const RESTART_HELP = "Session stopped. Paste your bot token on Connect, then hit RESTART.";
+
+function showRestartButton(){
+  killedMode = true;
+  const btn = $("killBtn");
+  btn.className = "stop restart";
+  btn.textContent = "▶ RESTART";
+  btn.title = RESTART_HELP;
+  goStepTo(0);
+}
+function showKillButton(){
+  killedMode = false;
+  const btn = $("killBtn");
+  btn.className = "stop";
+  btn.textContent = "■ STOP";
+  btn.title = KILL_HELP;
+}
+async function onKillRestart(){
+  if(killedMode) await restart();
+  else if(document.body.dataset.conn==="on") await kill();
+}
+
+async function bootstrapDesktop(){
+  try{
+    const d = await fetch("/api/desktop-bootstrap").then(r=>r.json());
+    if(d && d.version){
+      $("appVer").textContent = "v" + d.version + (d.publisher ? " · " + d.publisher : "");
+    }
+    if(d && d.desktop && d.ui_token){
+      $("uiToken").value = d.ui_token;
+      $("uiTokenBlock").classList.add("hidden");
+      $("tokNote").textContent = "The bot only reaches Discord while this is open. Desktop mode handles the local gate for you — the bot token clears on connect and is never saved.";
+    }
+  }catch(_){
+    try{
+      const v = await fetch("/api/version").then(r=>r.json());
+      if(v && v.version) $("appVer").textContent = "v" + v.version + (v.publisher ? " · " + v.publisher : "");
+    }catch(__){}
+  }
+  maybeShowFirstRun();
+  renderStepper();
+}
+
+async function connect(){
+  const bt=$("botToken").value;
+  const gid=$("guildId").value.trim();
+  if(!bt.trim()){ say("Paste the bot token first.","warn"); return; }
+  if(!gid){ say("Paste the server (guild) ID first.","warn"); return; }
+  say("Connecting to Discord…","warn");
+  setCatalogStatus("Connecting to Discord…","busy");
+  setHeaderStatus("", "connecting…");
+  try{
+    const d=await api("/connect","POST",{bot_token:bt,guild_id:gid});
+    $("botToken").value="";
+    showKillButton();
+    setConnected(d.guild, gid);
+    say("1/2 Discord connected to "+d.guild+".","ok");
+    setCatalogStatus(
+      "1/2 Discord connected"+(d.channel_count!=null?" · "+d.channel_count+" channels cached":"")+". Loading channel picker next…",
+      "ok"
+    );
+    doneSteps.add(0);
+  }catch(e){
+    setDisconnected("offline");
+    setHeaderStatus("", "offline", e.message);
+    setCatalogStatus("1/2 Discord connect failed: "+e.message,"err");
+    say("1/2 Discord connect failed: "+e.message,"err");
+    return;
+  }finally{
+    $("botToken").value="";
+  }
+  await new Promise(r=>setTimeout(r,50));
+  await loadMoveCatalogAfterConnect();
+}
+async function loadMoveCatalogAfterConnect(){
+  say("2/2 Loading channel picker…","warn");
+  setCatalogStatus("2/2 Loading channel picker…","busy");
+  try{
+    const n=await refreshMoveCatalog();
+    const msg="2/2 Channel picker ready · "+n+" channel"+(n===1?"":"s")+".";
+    setCatalogStatus(msg,"ok");
+    say(msg,"ok");
+  }catch(e){
+    const msg="2/2 Channel picker failed: "+e.message+" — hit Refresh channels.";
+    setCatalogStatus(msg,"err");
+    say(msg,"err");
+  }
+}
+async function disconnect(){
+  try{
+    await api("/disconnect","POST","");
+    setDisconnected("offline");
+    clearMovePickers();
+    setCatalogStatus("Channel picker: waiting for connect","");
+    say("Disconnected.","warn");
+  }catch(e){ say(e.message,"err"); }
+}
+async function kill(){
+  try{
+    const d=await api("/kill","POST","");
+    clearInterval(timer); timer=null;
+    setKilled();
+    $("prog").style.width="0%";
+    $("progText").textContent="Stopped.";
+    $("execBtn").disabled=true;
+    showRestartButton();
+    $("botToken").focus();
+    say("KILLED: "+d.message,"err");
+    say("Paste the bot token and hit RESTART to turn it back on.","warn");
+  }catch(e){ say(e.message,"err"); }
+}
+
+async function restart(){
+  const bt=$("botToken").value.trim();
+  const gid=$("guildId").value.trim();
+  if(!bt){
+    say("Paste your bot token first, then hit RESTART.","warn");
+    goStepTo(0);
+    $("botToken").focus();
+    return;
+  }
+  if(!gid){
+    say("Server (guild) ID is missing.","warn");
+    goStepTo(0);
+    $("guildId").focus();
+    return;
+  }
+  say("Restarting Discord connection…","warn");
+  setCatalogStatus("Restarting Discord connection…","busy");
+  setHeaderStatus("", "connecting…");
+  try{
+    try{ await api("/disconnect","POST",""); }catch(_){}
+    const d=await api("/connect","POST",{bot_token:bt,guild_id:gid});
+    $("botToken").value="";
+    $("prog").style.width="0%";
+    $("progText").textContent="Idle.";
+    showKillButton();
+    setConnected(d.guild, gid);
+    say("1/2 Restarted, Discord connected to "+d.guild+".","ok");
+    setCatalogStatus(
+      "1/2 Discord connected"+(d.channel_count!=null?" · "+d.channel_count+" channels cached":"")+". Loading channel picker next…",
+      "ok"
+    );
+  }catch(e){
+    $("botToken").value="";
+    setKilled();
+    setCatalogStatus("Discord restart failed: "+e.message,"err");
+    say("1/2 Restart failed: "+e.message,"err");
+    showRestartButton();
+    return;
+  }
+  await new Promise(r=>setTimeout(r,50));
+  await loadMoveCatalogAfterConnect();
+}
+
+function downloadYaml(filename, text){
+  const name = (filename && filename.toLowerCase().endsWith(".yaml"))
+    ? filename
+    : ((filename || "lazycatter-plan") + ".yaml");
+  const blob = new Blob([text], {type: "application/x-yaml;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function exportPlan(mode){
+  try{
+    const d = await api("/export-plan?mode="+encodeURIComponent(mode || "restore"));
+    const filename = d.filename || ("lazycatter-"+(d.mode||mode)+".yaml");
+    $("planText").value = d.yaml;
+    downloadYaml(filename, d.yaml);
+    say("Exported "+(d.mode||mode)+" plan as "+filename+" for "+d.guild_name+" ("+d.categories+" categories).","ok");
+    if(d.downloaded_to) say("YAML file: "+d.downloaded_to,"ok");
+    else if(d.saved_to) say("Also saved to "+d.saved_to,"ok");
+  }catch(e){ say("Export .yaml failed: "+e.message,"err"); }
+}
+
+function loadFile(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  $("pfName").textContent=f.name||"no file chosen";
+  const r=new FileReader(); r.onload=()=>$("planText").value=r.result; r.readAsText(f);
+}
+
+async function uploadPlan(){
+  try{ const d=await api("/plan","POST",$("planText").value);
+    say(`Plan accepted: ${d.categories} categories.`,"ok");
+    doneSteps.add(1); renderStepper(); }
+  catch(e){ say("Plan rejected: "+e.message,"err"); }
+}
+async function showDiff(){
+  try{ const d=await api("/diff");
+    let html=`<strong>${d.count} change(s):</strong><pre class="box">${d.actions.join("\n")||"(none)"}</pre>`;
+    if(d.warnings.length) html+=`<div class="warn"><strong>Warnings</strong><pre class="box">${d.warnings.join("\n")}</pre></div>`;
+    $("diffBox").innerHTML=html; $("execBtn").disabled=(d.count===0);
+    say(`Diff: ${d.count} change(s).`);
+    goStepTo(3);
+  }catch(e){ say(e.message,"err"); }
+}
+async function execute(){
+  if($("confirmApply").value.trim()!=="APPLY"){
+    say("Type APPLY in the confirm box before executing. Nothing was sent to Discord.","warn");
+    return;
+  }
+  try{ const d=await api("/execute","POST",{
+      confirm:"APPLY",
+      duration_seconds:Number($("duration").value)
+    });
+    $("confirmApply").value="";
+    say(d.message||`Executing ${d.total} action(s), ~${d.delay.toFixed(1)}s apart.`,"ok");
+    pollLogCount = 0;
+    poll(); }
+  catch(e){ say(e.message,"err"); }
+}
+async function cancel(){ try{const d=await api("/cancel","POST","");say(d.message);}catch(e){say(e.message,"err");} }
+
+let timer=null;
+let pollLogCount=0;
+async function poll(){
+  clearInterval(timer);
+  timer=setInterval(async()=>{
+    try{ const s=await api("/status");
+      if(s.guild && s.status && String(s.status).startsWith("connected")){
+        setConnected(s.guild, $("guildId").value.trim());
+      }
+      if(s.progress){ const {done,total}=s.progress; const pct=total?Math.round(done/total*100):0;
+        $("prog").style.width=pct+"%"; $("progText").textContent=`${done}/${total} done (${pct}%)`; }
+      if(s.log && s.log.length > pollLogCount){
+        const fresh = s.log.slice(pollLogCount);
+        pollLogCount = s.log.length;
+        for(const e of fresh){
+          const cls = e.status==="ok"?"ok":e.status==="error"?"err":"warn";
+          say(`[${e.status}] ${e.action}${e.detail?" · "+e.detail:""}`, cls);
+        }
+      }
+      if(!s.running){ clearInterval(timer); }
+    }catch(e){ clearInterval(timer); }
+  },1000);
+}
+
+bootstrapDesktop();
+document.getElementById("devPortalLink")?.addEventListener("click", (ev) => {
+  const href = ev.currentTarget.href;
+  if (window.pywebview && window.pywebview.api && window.pywebview.api.open_url) {
+    ev.preventDefault();
+    window.pywebview.api.open_url(href);
+  }
+});
+
+async function moveDryRun(){
+  try{
+    const body=moveBody();
+    if(!body) return;
+    const d=await api("/move/dryrun","POST",body);
+    let html=`<strong>${d.units} items · ${d.messages} messages</strong>`;
+    if(d.matched_threads && d.matched_threads.length)
+      html+=`<pre class="box">threads: ${d.matched_threads.map(t=>JSON.stringify(t)).join(", ")}</pre>`;
+    html+=`<pre class="box">from  #${d.source}\ninto  #${d.target}\nembeds w/ images: ${d.embeds_with_images||0}\n${d.note}</pre>`;
+    if(!body.include_replies && (d.embeds_with_images||0)===0)
+      html+=`<p class="warn"><strong>Tip:</strong> starters only found no embed images. For library-of-x posts, tick <em>Copy whole thread</em> and dry run again.</p>`;
+    if(d.oversized && d.oversized.length)
+      html+=`<p class="warn"><strong>Too big to re-upload</strong></p><pre class="box">${d.oversized.join("\n")}</pre>`;
+    html+=`<p class="note">Ready? Hit <strong>▶ Copy content</strong> (not plan Execute).</p>`;
+    $("moveBox").innerHTML=html;
+    $("moveBtn").disabled=(d.messages===0);
+    say(`Dry run: ${d.messages} messages would copy.`,"ok");
+  }catch(e){ say(e.message,"err"); }
+}
+function channelLabel(c){
+  const cat=c.category?c.category+" / ":"";
+  const tag=c.type==="forum"?"forum":(c.type==="announcement"?"news":"text");
+  const nsfw=c.nsfw?" · 18+":"";
+  return `${cat}#${c.name} (${tag}${nsfw})`;
+}
+function setCatalogStatus(msg, kind=""){
+  const el=$("moveCatalogStatus");
+  if(!el) return;
+  el.className="catStatus"+(kind?" "+kind:"");
+  el.textContent=msg;
+}
+function clearMovePickers(){
+  const src=$("moveSource"), tgt=$("moveTarget");
+  if(src) src.innerHTML=`<option value="">Connect first, then pick a source</option>`;
+  if(tgt) tgt.innerHTML=`<option value="">Pick where copies land</option>`;
+  const pick=$("threadPick"); if(pick) pick.innerHTML="";
+  const wrap=$("threadWrap"); if(wrap) wrap.hidden=true;
+  const empty=$("threadEmpty"); if(empty) empty.hidden=true;
+  const btn=$("moveBtn"); if(btn) btn.disabled=true;
+}
+async function refreshMoveCatalogBtn(){
+  setCatalogStatus("Refreshing channel picker…","busy");
+  say("Refreshing channel picker…","warn");
+  try{
+    const n=await refreshMoveCatalog();
+    const msg="Channel picker ready · "+n+" channel"+(n===1?"":"s")+".";
+    setCatalogStatus(msg,"ok");
+    say(msg,"ok");
+  }catch(e){
+    const msg="Channel picker failed: "+e.message;
+    setCatalogStatus(msg,"err");
+    say(msg,"err");
+  }
+}
+async function refreshMoveCatalog(){
+  const d=await api("/move/catalog");
+  const src=$("moveSource"), tgt=$("moveTarget");
+  if(!src || !tgt) return 0;
+  const keepSrc=src.value, keepTgt=tgt.value;
+  const channels=d.channels||[];
+  src.innerHTML=`<option value="">Pick a source channel</option>`;
+  tgt.innerHTML=`<option value="">Pick where copies land</option>`;
+  channels.forEach(c=>{
+    const label=channelLabel(c);
+    const opt=document.createElement("option");
+    opt.value=c.id; opt.textContent=label; opt.dataset.type=c.type;
+    src.appendChild(opt);
+    const opt2=document.createElement("option");
+    opt2.value=c.id; opt2.textContent=label; opt2.dataset.type=c.type;
+    tgt.appendChild(opt2);
+  });
+  if(keepSrc && [...src.options].some(o=>o.value===keepSrc)) src.value=keepSrc;
+  if(keepTgt && [...tgt.options].some(o=>o.value===keepTgt)) tgt.value=keepTgt;
+  await onMoveSourceChange();
+  return channels.length;
+}
+async function onMoveSourceChange(){
+  const sid=$("moveSource") ? $("moveSource").value : "";
+  const pick=$("threadPick"); if(pick) pick.innerHTML="";
+  const wrap=$("threadWrap"); if(wrap) wrap.hidden=true;
+  const empty=$("threadEmpty"); if(empty) empty.hidden=true;
+  if(!sid) return;
+  if(wrap){
+    wrap.hidden=false;
+    if($("threadHint")) $("threadHint").textContent="Loading threads…";
+  }
+  try{
+    const d=await api("/move/threads?source_id="+encodeURIComponent(sid));
+    const threads=d.threads||[];
+    if(!threads.length){
+      if(wrap) wrap.hidden=true;
+      if(empty) empty.hidden=false;
+      return;
+    }
+    if(wrap) wrap.hidden=false;
+    const box=$("threadPick");
+    threads.forEach(t=>{
+      const lab=document.createElement("label");
+      const cb=document.createElement("input");
+      cb.type="checkbox"; cb.value=t.id; cb.className="threadCb";
+      const span=document.createElement("span");
+      span.textContent=t.name;
+      if(t.archived){
+        const arch=document.createElement("span");
+        arch.className="arch"; arch.textContent="(archived)";
+        span.appendChild(document.createTextNode(" "));
+        span.appendChild(arch);
+      }
+      lab.appendChild(cb); lab.appendChild(span);
+      box.appendChild(lab);
+    });
+    if($("threadHint")) $("threadHint").textContent=
+      d.source_type==="forum"
+        ? `Found ${threads.length} forum post(s). Tick the ones to copy.`
+        : `Found ${threads.length} thread(s). Tick to copy those threads; leave none for the channel itself.`;
+  }catch(e){
+    if(wrap) wrap.hidden=true;
+    say(e.message,"err");
+  }
+}
+function threadSelectAll(on){
+  document.querySelectorAll(".threadCb").forEach(cb=>{ cb.checked=!!on; });
+}
+function selectedThreadIds(){
+  return [...document.querySelectorAll(".threadCb:checked")].map(cb=>cb.value);
+}
+function moveBody(){
+  const source_id=$("moveSource").value.trim();
+  const target_id=$("moveTarget").value.trim();
+  if(!source_id){ say("Pick a source channel.","warn"); return null; }
+  if(!target_id){ say("Pick a target channel.","warn"); return null; }
+  if(source_id===target_id){ say("Source and target have to differ.","warn"); return null; }
+  const opt=$("moveSource").selectedOptions[0];
+  const isForum=opt && opt.dataset.type==="forum";
+  const thread_ids=selectedThreadIds();
+  if(isForum && !thread_ids.length){
+    say("Tick at least one forum post to copy.","warn");
+    return null;
+  }
+  return {
+    source_id,
+    target_id,
+    thread_ids,
+    source_after:$("sourceAfter").value,
+    include_replies:!!$("includeReplies").checked,
+    append_source_link:!!$("appendLink").checked,
+    age_restrict_target:!!$("ageRestrict").checked
+  };
+}
+async function moveStart(){
+  const body=moveBody();
+  if(!body) return;
+  if(body.source_after==="delete"){
+    if(!confirm("Delete the source channel AFTER copying? This cant be undone.")) return;
+    body.confirm_delete="DELETE";
+  }
+  try{
+    const d=await api("/move/start","POST",body);
+    say(d.message||"Copy started.","ok");
+    movePoll();
+  }catch(e){ say(e.message,"err"); }
+}
+async function moveCancel(){
+  try{ const d=await api("/move/cancel","POST",""); say(d.message); }
+  catch(e){ say(e.message,"err"); }
+}
+let moveTimer=null;
+function movePoll(){
+  clearInterval(moveTimer);
+  moveTimer=setInterval(async()=>{
+    try{
+      const s=await api("/move/status");
+      if(s.progress){
+        const {done,total}=s.progress;
+        $("moveBox").innerHTML=`<strong>${done} / ${total}</strong>`+
+          (s.notes && s.notes.length?`<pre class="box">${s.notes.slice(-20).join("\n")}</pre>`:"");
+      }
+      if(!s.running) clearInterval(moveTimer);
+    }catch(e){ clearInterval(moveTimer); }
+  },1000);
+}
+</script>
+</body>
+</html>

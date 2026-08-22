@@ -1,0 +1,29 @@
+services:
+  lazycatter:
+    build: .
+    container_name: lazycatter
+
+    # ui only on this machines loopback
+    # never exposed to the lan or internet
+    ports:
+      - "127.0.0.1:8787:8787"
+
+    # only the local ui-gate secret comes in here
+    # discord bot token is deliberately not here
+    # you type it into the ui each session
+    # it never enters the containers env image or disk
+    env_file:
+      - .env
+
+    # --- hardening (safe defaults now that docker is the run path) ---
+    security_opt:
+      - no-new-privileges:true      # process cant gain extra privileges
+    cap_drop:
+      - ALL                          # app needs no linux capabilities
+    read_only: true                  # container filesystem is immutable
+    tmpfs:
+      - /tmp                         # ...except a scratch space in ram
+    restart: "no"                    # never auto-restarts you start it
+
+# stop + remove everything (hard kill nothing persists):
+#   docker compose down

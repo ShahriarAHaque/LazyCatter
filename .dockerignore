@@ -1,0 +1,16 @@
+.env
+.env.*
+.git
+.gitignore
+**/__pycache__
+*.pyc
+*.log
+backup-*.json
+exports/
+plans/
+README.md
+AGENTS.md
+.venv/
+venv/
+*.md
+!skill/**/*.md

@@ -1,0 +1,4 @@
+discord.py==2.7.1
+PyYAML==6.0.2
+fastapi==0.115.6
+uvicorn==0.34.0

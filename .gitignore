@@ -1,0 +1,52 @@
+# secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+secrets/
+.secrets/
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# tooling / ide
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# runtime / exports (may contain server structure)
+*.log
+backup-*.json
+exports/
+plans/*.yaml
+!plans/.gitkeep
+plans/*.yml
+
+# docker
+*.tar
+
+# build / packaging
+build/
+dist/
+installer-out/
+release/
+*.spec.bak
+
+# code signing material (never commit)
+*.pfx
+*.p12
+codesign/
+.signing/
