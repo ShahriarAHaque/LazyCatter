@@ -86,3 +86,13 @@ optional docker: copy `.env.example` to `.env`
 set `LAZYCATTER_UI_TOKEN`
 then `docker compose up --build`
 and open http://127.0.0.1:8787
+
+AI USAGE DECLARATION
+
+AI has been used to create the initial project structure and scaffolding for
+this application. Generative AI has been used to author the Claude skill files
+in skill/lazycatter/ and the accompanying agent documentation.
+
+AI does not execute changes
+within the application; it only produces a plan.yaml that the user reviews and
+applies.
