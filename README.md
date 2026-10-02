@@ -87,7 +87,7 @@ set `LAZYCATTER_UI_TOKEN`
 then `docker compose up --build`
 and open http://127.0.0.1:8787
 
-AI USAGE DECLARATION
+## AI USAGE DECLARATION
 
 AI has been used to create the initial project structure and scaffolding for
 this application. Generative AI has been used to author the Claude skill files
